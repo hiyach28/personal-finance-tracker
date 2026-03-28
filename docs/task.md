@@ -1,0 +1,28 @@
+- [ ] **Phase 1: Backend Setup & Database**
+  - [ ] Initialize FastAPI project structure (`app/routers`, `services`, `models`, `schemas`, etc.)
+  - [ ] Configure MySQL 8 DB connection with SQLAlchemy
+  - [ ] Define SQLAlchemy models exactly matching `DATABASE_SCHEMA.md`
+  - [ ] Install Alembic and generate initial migrations
+- [ ] **Phase 2: Backend Core APIs & Logic**
+  - [ ] Implement JWT Authentication and Pydantic schemas
+  - [ ] Implement Categories & Subcategories APIs
+  - [ ] Implement Wallet APIs (CRUD, Add Money, Transfer)
+  - [ ] Implement Expenses APIs (CRUD, Filters, Pagination)
+  - [ ] Implement Budgets APIs
+  - [ ] Implement Habit Insights and Analytics Dashboard APIs
+- [ ] **Phase 3: Mobile App Setup**
+  - [ ] Initialize React Native Expo app with TypeScript
+  - [ ] Setup folder structure (`src/components`, `screens`, `navigation`, `services`, `store`)
+  - [ ] Install core UI and architectural dependencies (React Navigation, Zustand, Axios, charts)
+- [ ] **Phase 4: Mobile App Features**
+  - [ ] Define API service layer with Axios
+  - [ ] Configure Zustand global stores for state management
+  - [ ] Setup Bottom Tab Navigation
+  - [ ] Build Dashboard Screen
+  - [ ] Build Add Expense Screen
+  - [ ] Build Expense History Screen (with filters)
+  - [ ] Build Wallets Screen
+  - [ ] Build Budget & Analytics Screens
+- [ ] **Phase 5: Finalization & APK Build**
+  - [ ] Verify functionality end-to-end
+  - [ ] Configure Expo build for Android APK generation

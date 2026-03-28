@@ -1,0 +1,56 @@
+# Personal Finance Tracker Implementation Plan
+
+This plan is based on the provided FRD, Database Schema, and Development Guidelines.
+
+## Project Goal
+Build a modern, full-stack personal finance tracker consisting of a **Python FastAPI** backend connected to a **MySQL 8** database and a **React Native (Expo)** mobile application. The app allows users to track expenses, manage multiple wallets with balances, define global monthly budgets, check habit insights, and view beautiful analytics.
+
+## Proposed Changes
+
+### 1. Backend Development (FastAPI + MySQL)
+
+**Component: Database Setup**
+- Set up MySQL database connection using SQLAlchemy.
+- Create 9 models matching [docs/db_schema.md](file:///c:/Users/ASUS/Desktop/coding_projects/ai-projects/finance-tracker/docs/db_schema.md): `User`, `Wallet`, `Category`, `Subcategory`, `Expense`, `WalletTransaction`, `WalletTransfer`, `Budget`, `HabitInsight`.
+- Initialize `Alembic` for database migration management.
+
+**Component: Authentication**
+- Set up JWT handling and password hashing using bcrypt.
+- Create `/auth/register` and `/auth/login` endpoints.
+
+**Component: Business Logic & APIs (REST)**
+- **Categories/Subcategories**: Seed default taxonomy (`Food & Dining`, `Transport`, etc.). Endpoints to fetch these hierarchies.
+- **Wallets**: CRUD endpoints. Special logic for `/wallets/add-money` and `/wallets/transfer` which update wallet balances.
+- **Expenses**: CRUD logic taking `amount`, `wallet`, `category`, `subcategory`, `date`. When an expense is added/deleted, the `wallet` balance must be adjusted. Include pagination and filtering by date/category.
+- **Budgets**: Endpoints for users to set/view total monthly budget. Calculate spending against total.
+- **Analytics & Capabilities**: Generate JSON responses with dashboard calculations (total balance across wallets, spending trens over months, habit insights like frequent small expenses).
+
+### 2. Mobile App Development (React Native + Expo)
+
+**Component: Project Initialization**
+- Initialize a brand new Expo React Native application with TypeScript template.
+- Establish `src` directory containing: `components`, `screens`, `navigation`, `services`, `store`, `hooks`, `utils`, `types`.
+
+**Component: Data Management layer**
+- Define `axios` instance connected to local FastAPI server. Intercept requests to inject JWT.
+- Use `Zustand` for state management (User context, offline wallets data reference if needed).
+
+**Component: UI & Navigation**
+- `React Navigation` setup with a `BottomTabNavigator`.
+- Screens to be built:
+    1. **Dashboard**: High-level spending vs budget overview, and category summary.
+    2. **Add Expense**: Optimized for quick entry (< 5 sec).
+    3. **History**: FlatList showing all records, offering deletion/edit and filtering.
+    4. **Wallets**: Manage cash, bank, etc. Provide UI for receiving money.
+    5. **Analytics/Budget**: `react-native-chart-kit` powered pie and line charts mimicking FRD components.
+
+**Component: Packaging**
+- Testing layout/rendering.
+- Finalizing `app.json` configuration to allow standard `eas build -p android` (Android APK).
+
+## Verification Plan
+
+### Automated/Manual Verification
+- Use Swagger Docs (`/docs`) in FastAPI to manually verify all API endpoints against a dev database.
+- Boot React Native in emulator/Expo Go. Ensure that creating an expense lowers the assigned wallet balance and logs the expense accurately.
+- Verify Expo can successfully run Android build locally or by logging onto EAS.
