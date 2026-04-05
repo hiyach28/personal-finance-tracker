@@ -35,8 +35,7 @@ class CategoryService:
         ],
         "Personal Transfers": [
             "Paid to Friend",
-            "Received from Friend",
-            "Family"
+            "Others"
         ]
     }
 
