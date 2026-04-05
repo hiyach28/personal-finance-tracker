@@ -19,6 +19,17 @@ class WalletResponse(WalletBase):
     class Config:
         from_attributes = True
 
+class WalletTransactionResponse(BaseModel):
+    id: int
+    wallet_id: int
+    type: str
+    amount: Decimal
+    description: Optional[str] = None
+    transaction_date: date
+
+    class Config:
+        from_attributes = True
+
 class AddMoneyRequest(BaseModel):
     amount: Decimal
     description: Optional[str] = None

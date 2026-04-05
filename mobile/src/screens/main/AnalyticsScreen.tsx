@@ -13,12 +13,17 @@ const AnalyticsScreen = () => {
   const C = useTheme();
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [monthlyReport, setMonthlyReport] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
       setRefreshing(true);
-      const res = await api.get('/analytics');
+      const [res, monthlyRes] = await Promise.all([
+        api.get('/analytics'),
+        api.get('/analytics/monthly-report')
+      ]);
       setData(res.data);
+      setMonthlyReport(monthlyRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -117,6 +122,38 @@ const AnalyticsScreen = () => {
                   <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
                     <Text style={{ color: C.text }}>{h.habit} (x{h.frequency})</Text>
                     <Text style={{ fontWeight: 'bold', color: C.text }}>₹{h.total_spent}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {monthlyReport.length > 0 && (
+              <View style={[styles.card, { backgroundColor: C.surface }]}>
+                <Text style={[styles.chartTitle, { color: C.text }]}>6-Month Target</Text>
+                {monthlyReport.slice().reverse().map((m: any, idx: number) => (
+                  <View key={idx} style={{ 
+                    paddingVertical: 12, 
+                    borderBottomWidth: idx === monthlyReport.length - 1 ? 0 : 1, 
+                    borderBottomColor: isDark ? '#333' : '#eee' 
+                  }}>
+                    <Text style={{ color: C.text, fontWeight: 'bold', fontSize: 16 }}>{m.month}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                      <Text style={{ color: C.textSecondary, fontWeight: '500' }}>Income: <Text style={{ color: '#4caf50' }}>₹{m.income}</Text></Text>
+                      <Text style={{ color: C.textSecondary, fontWeight: '500' }}>Spent: <Text style={{ color: '#f44336' }}>₹{m.spent}</Text></Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                      <Text style={{ 
+                          color: m.budget ? C.textSecondary : '#999', 
+                          fontStyle: m.budget ? 'normal' : 'italic' 
+                        }}>
+                        Budget: {m.budget ? `₹${m.budget}` : 'No budget set'}
+                      </Text>
+                      {m.budget !== null && (
+                         <Text style={{ color: parseFloat(m.remaining) >= 0 ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
+                           Remaining: ₹{m.remaining}
+                         </Text>
+                      )}
+                    </View>
                   </View>
                 ))}
               </View>

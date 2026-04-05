@@ -64,6 +64,27 @@ class ExpenseService:
         db.refresh(expense)
         return expense
 
+    def update_expense(self, db: Session, expense_id: int, expense_in: ExpenseCreate, user_id: int) -> Expense:
+        expense = self.get_expense(db, expense_id, user_id)
+        
+        delta = expense_in.amount - expense.amount
+        
+        wallet = db.query(Wallet).filter(Wallet.id == expense.wallet_id, Wallet.user_id == user_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
+            
+        wallet.balance -= delta
+        
+        expense.amount = expense_in.amount
+        expense.description = expense_in.description
+        expense.category_id = expense_in.category_id
+        expense.subcategory_id = expense_in.subcategory_id
+        expense.expense_date = expense_in.expense_date
+        
+        db.commit()
+        db.refresh(expense)
+        return expense
+
     def get_expenses(
         self, 
         db: Session, 

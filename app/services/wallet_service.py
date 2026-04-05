@@ -18,6 +18,9 @@ class WalletService:
     def get_wallets(self, db: Session, user_id: int) -> List[Wallet]:
         return db.query(Wallet).filter(Wallet.user_id == user_id).all()
 
+    def get_all_transactions(self, db: Session, user_id: int) -> List[WalletTransaction]:
+        return db.query(WalletTransaction).filter(WalletTransaction.user_id == user_id).order_by(WalletTransaction.transaction_date.desc()).all()
+
     def get_wallet(self, db: Session, wallet_id: int, user_id: int) -> Wallet:
         wallet = db.query(Wallet).filter(Wallet.id == wallet_id, Wallet.user_id == user_id).first()
         if not wallet:
@@ -59,6 +62,34 @@ class WalletService:
         db.commit()
         db.refresh(wallet)
         return wallet
+
+    def update_transaction(self, db: Session, transaction_id: int, req: AddMoneyRequest, user_id: int) -> WalletTransaction:
+        tx = db.query(WalletTransaction).filter(WalletTransaction.id == transaction_id, WalletTransaction.user_id == user_id).first()
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        if tx.type == "income":
+            delta = req.amount - tx.amount
+            wallet = self.get_wallet(db, tx.wallet_id, user_id)
+            wallet.balance += delta
+            
+        tx.amount = req.amount
+        tx.description = req.description
+        db.commit()
+        db.refresh(tx)
+        return tx
+
+    def delete_transaction(self, db: Session, transaction_id: int, user_id: int):
+        tx = db.query(WalletTransaction).filter(WalletTransaction.id == transaction_id, WalletTransaction.user_id == user_id).first()
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+            
+        if tx.type == "income":
+            wallet = self.get_wallet(db, tx.wallet_id, user_id)
+            wallet.balance -= tx.amount
+            
+        db.delete(tx)
+        db.commit()
 
     def transfer_money(self, db: Session, from_wallet_id: int, req: TransferMoneyRequest, user_id: int):
         from_wallet = self.get_wallet(db, from_wallet_id, user_id)

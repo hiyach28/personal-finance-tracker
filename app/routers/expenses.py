@@ -35,6 +35,10 @@ def get_expenses(
 def get_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return expense_service.get_expense(db, expense_id, current_user.id)
 
+@router.put("/{expense_id}", response_model=ExpenseResponse)
+def update_expense(expense_id: int, expense_in: ExpenseCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return expense_service.update_expense(db, expense_id, expense_in, current_user.id)
+
 @router.delete("/{expense_id}")
 def delete_expense(expense_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     expense_service.delete_expense(db, expense_id, current_user.id)

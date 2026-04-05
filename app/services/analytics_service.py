@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import date
 from decimal import Decimal
-from app.models.wallet import Wallet
+from app.models.wallet import Wallet, WalletTransaction
 from app.models.expense import Expense
 from app.models.budget import Budget
 from app.models.category import Category
@@ -77,5 +77,53 @@ class AnalyticsService:
             "category_spending_summary": category_summary,
             "habit_insights": habit_summary
         }
+
+    def get_monthly_report(self, db: Session, user_id: int) -> List[Dict[str, Any]]:
+        report = []
+        today = date.today()
+        # Generate report for the last 6 months
+        for i in range(6):
+            y = today.year + (today.month - 1 - i) // 12
+            m = (today.month - 1 - i) % 12 + 1
+            
+            start_date = date(y, m, 1)
+            if m == 12:
+                end_date = date(y + 1, 1, 1)
+            else:
+                end_date = date(y, m + 1, 1)
+            
+            total_spent = db.query(func.sum(Expense.amount)).filter(
+                Expense.user_id == user_id,
+                Expense.expense_date >= start_date,
+                Expense.expense_date < end_date
+            ).scalar() or Decimal('0.00')
+
+            total_income = db.query(func.sum(WalletTransaction.amount)).filter(
+                WalletTransaction.user_id == user_id,
+                WalletTransaction.type == 'income',
+                WalletTransaction.transaction_date >= start_date,
+                WalletTransaction.transaction_date < end_date
+            ).scalar() or Decimal('0.00')
+
+            budget_record = db.query(Budget).filter(
+                Budget.user_id == user_id,
+                Budget.month == m,
+                Budget.year == y
+            ).first()
+            
+            budget = budget_record.total_budget if budget_record else None
+            remaining = budget - total_spent if budget is not None else None
+
+            month_name = date(y, m, 1).strftime("%B %Y")
+            
+            report.append({
+                "month": month_name,
+                "spent": total_spent,
+                "income": total_income,
+                "budget": budget,
+                "remaining": remaining
+            })
+            
+        return report
 
 analytics_service = AnalyticsService()

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database.database import get_db
-from app.schemas.wallet import WalletCreate, WalletResponse, AddMoneyRequest, TransferMoneyRequest
+from app.schemas.wallet import WalletCreate, WalletResponse, AddMoneyRequest, TransferMoneyRequest, WalletTransactionResponse
 from app.services.wallet_service import wallet_service
 from app.models.user import User
 from app.dependencies import get_current_user
@@ -16,6 +16,19 @@ def create_wallet(wallet_in: WalletCreate, db: Session = Depends(get_db), curren
 @router.get("/", response_model=List[WalletResponse])
 def get_wallets(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return wallet_service.get_wallets(db, current_user.id)
+
+@router.get("/transactions/all", response_model=List[WalletTransactionResponse])
+def get_all_transactions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return wallet_service.get_all_transactions(db, current_user.id)
+
+@router.put("/transactions/{transaction_id}", response_model=WalletTransactionResponse)
+def update_transaction(transaction_id: int, req: AddMoneyRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return wallet_service.update_transaction(db, transaction_id, req, current_user.id)
+
+@router.delete("/transactions/{transaction_id}")
+def delete_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    wallet_service.delete_transaction(db, transaction_id, current_user.id)
+    return {"detail": "Transaction deleted"}
 
 @router.get("/{wallet_id}", response_model=WalletResponse)
 def get_wallet(wallet_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

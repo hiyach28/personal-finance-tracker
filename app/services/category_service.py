@@ -29,7 +29,14 @@ class CategoryService:
             "Doctor Visits"
         ],
         "Miscellaneous": [
-            "Other Expenses"
+            "Other Expenses",
+            "Transaction",
+            "General Expense"
+        ],
+        "Personal Transfers": [
+            "Paid to Friend",
+            "Received from Friend",
+            "Family"
         ]
     }
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ScrollView, Animated, LayoutAnimation, Platform, UIManager, InteractionManager, Modal, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ScrollView, Animated, LayoutAnimation, Platform, UIManager, InteractionManager, Modal, StyleSheet, Dimensions, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import { useStore } from '../../store';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +25,7 @@ const getCategoryIcon = (name: string): any => {
   if (n.includes('utility')) return 'flash';
   if (n.includes('entertainment')) return 'film';
   if (n.includes('education')) return 'book';
+  if (n.includes('personal') || n.includes('transfer')) return 'swap-horizontal';
   return 'apps';
 };
 
@@ -36,6 +38,9 @@ const HistoryScreen = () => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('date_desc');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [pendingCategorization, setPendingCategorization] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const textAnim = useRef(new Animated.Value(0)).current;
@@ -72,14 +77,49 @@ const HistoryScreen = () => {
 
   const loadExpenses = async () => {
     try {
-      const res = await api.get('/expenses/?limit=100');
-      setExpenses(res.data);
+      const [expRes, txRes] = await Promise.all([
+        api.get('/expenses/?limit=100'),
+        api.get('/wallets/transactions/all')
+      ]);
+      
+      const mixed = [
+        ...expRes.data.map((e: any) => ({ ...e, is_income: false })),
+        ...txRes.data.filter((t: any) => t.type === 'income').map((t: any) => ({
+          ...t,
+          is_income: true,
+          expense_date: t.transaction_date,
+          category_id: 99999, // default unmapped category for incomes
+        }))
+      ];
+      setExpenses(mixed);
     } catch (e) {
       console.error(e);
     }
   };
 
   useFocusEffect(React.useCallback(() => { loadExpenses(); }, []));
+
+  React.useEffect(() => {
+    if (processedExpenses.length === 0 || categories.length === 0) return;
+    const freq: Record<string, number> = {};
+    const otherCategory = categories.find(c => c.name.toLowerCase().includes('other') || c.name.toLowerCase().includes('miscellaneous')) || categories[0];
+    
+    processedExpenses.forEach(exp => {
+      if (!exp.is_income && exp.category_id === otherCategory.id && exp.description) {
+         freq[exp.description] = (freq[exp.description] || 0) + 1;
+      }
+    });
+
+    const repeated = Object.keys(freq).find(k => freq[k] >= 3);
+    if (repeated) {
+       AsyncStorage.getItem('merchant_category_map').then(val => {
+          const map = val ? JSON.parse(val) : {};
+          if (!map[repeated.toLowerCase()] && !map[`dismissed_${repeated.toLowerCase()}`]) {
+             setPendingCategorization(repeated);
+          }
+       });
+    }
+  }, [processedExpenses, categories]);
 
   const handleCategoryPress = (id: string | null, xPosition: number = 0) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -122,11 +162,89 @@ const HistoryScreen = () => {
     return 'Category';
   };
 
+  const handleDeleteSelected = () => {
+    Alert.alert('Delete Transactions', `Delete ${selectedIds.size} transaction(s)?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          const promises = Array.from(selectedIds).map(async (idStr) => {
+            const isInc = idStr.endsWith('-inc');
+            const id = idStr.replace('-inc', '').replace('-exp', '');
+            if (isInc) await api.delete(`/wallets/transactions/${id}`);
+            else await api.delete(`/expenses/${id}`);
+          });
+          await Promise.all(promises);
+          setSelectedIds(new Set());
+          loadExpenses();
+        } catch (e) { Alert.alert('Error', 'Failed to delete transactions'); }
+      }}
+    ]);
+  };
+
+  const handleEdit = () => {
+    const idKey = Array.from(selectedIds)[0];
+    const isInc = idKey.endsWith('-inc');
+    const id = Number(idKey.replace('-inc', '').replace('-exp', ''));
+    const item = processedExpenses.find(i => i.id === id && i.is_income === isInc);
+    if (item) {
+       setEditingItem({ 
+         ...item, 
+         editAmount: item.amount.toString(), 
+         editDescription: item.description,
+         editCategory: item.category_id 
+       });
+    }
+  };
+
+  const handleUpdateTransaction = async () => {
+    if (!editingItem) return;
+    try {
+      const payload = {
+        amount: parseFloat(editingItem.editAmount) || parseFloat(editingItem.amount),
+        description: editingItem.editDescription || editingItem.description,
+        wallet_id: editingItem.wallet_id || 1, // Will retain backend if omitted dynamically
+        category_id: editingItem.editCategory || editingItem.category_id,
+        subcategory_id: editingItem.subcategory_id,
+        expense_date: editingItem.expense_date
+      };
+
+      if (editingItem.is_income) {
+         await api.put(`/wallets/transactions/${editingItem.id}`, { amount: payload.amount, description: payload.description });
+      } else {
+         await api.put(`/expenses/${editingItem.id}`, payload);
+      }
+      setEditingItem(null);
+      setSelectedIds(new Set());
+      loadExpenses();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update transaction');
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={{ paddingTop: 45, paddingHorizontal: 20, paddingBottom: 15 }}>
-        <Text style={{ fontSize: 28, fontWeight: 'bold', color: C.text }}>History</Text>
-      </View>
+      {selectedIds.size > 0 ? (
+        <View style={{ paddingTop: 45, paddingHorizontal: 20, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: C.accent }}>{selectedIds.size} Selected</Text>
+          <View style={{ flexDirection: 'row' }}>
+            {selectedIds.size === 1 && (
+              <TouchableOpacity onPress={handleEdit} style={{ padding: 8, marginRight: 10 }}>
+                <Ionicons name="pencil" size={24} color={C.text} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleDeleteSelected} style={{ padding: 8 }}>
+              <Ionicons name="trash" size={24} color={C.danger} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSelectedIds(new Set())} style={{ padding: 8, marginLeft: 10 }}>
+              <Ionicons name="close" size={24} color={C.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={{ paddingTop: 45, paddingHorizontal: 20, paddingBottom: 15 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: C.text }}>History</Text>
+        </View>
+      )}
 
       {/* Category Bar */}
       <View style={{ height: 45, marginBottom: 10, paddingHorizontal: 20, justifyContent: 'center' }}>
@@ -174,16 +292,48 @@ const HistoryScreen = () => {
 
       <FlatList
         data={processedExpenses}
-        keyExtractor={i => i.id.toString()}
-        renderItem={({ item }) => (
-          <View style={{ backgroundColor: C.surface, padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginHorizontal: 20, elevation: 1 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: C.text }}>{item.description || 'Expense'}</Text>
-              <Text style={{ fontSize: 12, color: C.textSecondary, marginTop: 4 }}>{item.expense_date} • {categories.find(c => c.id === item.category_id)?.name || 'Unknown'}</Text>
-            </View>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.danger }}>₹{item.amount}</Text>
-          </View>
-        )}
+        keyExtractor={i => i.id.toString() + (i.is_income ? '-inc' : '-exp')}
+        renderItem={({ item }) => {
+          const isEstimated = item.description?.includes('Inferred Income');
+          const itemName = isEstimated ? 'Estimated Income' : (item.description || (item.is_income ? 'Income' : 'Expense'));
+          const incomeColor = isEstimated ? '#81c784' : '#4caf50';
+          const itemKey = item.id.toString() + (item.is_income ? '-inc' : '-exp');
+          const isSelected = selectedIds.has(itemKey);
+          
+          return (
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              onLongPress={() => {
+                const newSet = new Set(selectedIds);
+                newSet.add(itemKey);
+                setSelectedIds(newSet);
+              }}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  const newSet = new Set(selectedIds);
+                  if (newSet.has(itemKey)) newSet.delete(itemKey);
+                  else newSet.add(itemKey);
+                  setSelectedIds(newSet);
+                } else {
+                  // regular press could be ignored since learning happens passively now
+                }
+              }}
+              style={{ backgroundColor: isSelected ? C.surface2 : C.surface, padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginHorizontal: 20, elevation: 1, borderWidth: isSelected ? 2 : 0, borderColor: C.accent }}>
+              <View style={{ flex: 1, paddingRight: 15 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: C.text, marginBottom: 6 }} numberOfLines={1}>{itemName}</Text>
+                <Text style={{ fontSize: 15, color: item.is_income ? incomeColor : C.danger, fontWeight: '700' }}>
+                  {item.is_income ? '+' : '-'}₹{item.amount}
+                  <Text style={{ color: C.textSecondary, fontWeight: '400', fontSize: 13 }}>  •  {item.expense_date}</Text>
+                </Text>
+              </View>
+              <View style={{ backgroundColor: C.surface2, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, maxWidth: 100 }}>
+                 <Text style={{ color: C.textSecondary, fontSize: 11, fontWeight: '700', textAlign: 'center' }} numberOfLines={1}>
+                   {(item.is_income ? 'Income' : (categories.find(c => c.id === item.category_id)?.name || 'Unknown')).toUpperCase()}
+                 </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         contentContainerStyle={{ paddingBottom: 140 }}
         style={{ flex: 1 }}
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: C.textSecondary, marginHorizontal: 20 }}>No expenses found.</Text>}
@@ -207,6 +357,97 @@ const HistoryScreen = () => {
             </View>
           </Animated.View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Smart Learning Modal (Task 18) */}
+      <Modal visible={!!pendingCategorization} transparent animationType="slide" onRequestClose={() => setPendingCategorization(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheetContent, { backgroundColor: C.surface, maxHeight: SCREEN_HEIGHT * 0.7 }]}>
+            <View style={[styles.dragHandle, { backgroundColor: C.border }]} />
+            <Text style={[styles.sheetTitle, { color: C.text, fontSize: 18 }]}>Smart Categorization</Text>
+            <Text style={{ textAlign: 'center', marginBottom: 20, color: C.textSecondary, paddingHorizontal: 20 }}>
+              You often pay "{pendingCategorization}". Assign a generic category for future imports?
+            </Text>
+            <ScrollView style={{ marginBottom: 10 }}>
+              {categories.map(c => (
+                <TouchableOpacity key={c.id} style={[styles.sheetOption, { borderBottomWidth: 1, borderBottomColor: C.border }]} onPress={async () => {
+                  const mapStr = await AsyncStorage.getItem('merchant_category_map');
+                  const map = mapStr ? JSON.parse(mapStr) : {};
+                  map[pendingCategorization!.toLowerCase()] = { catId: c.id, subId: c.subcategories?.[0]?.id || null };
+                  await AsyncStorage.setItem('merchant_category_map', JSON.stringify(map));
+                  setPendingCategorization(null);
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: C.surface2, alignItems: 'center', justifyContent: 'center', marginRight: 15 }}>
+                      <Ionicons name={getCategoryIcon(c.name)} size={16} color={C.text} />
+                    </View>
+                    <Text style={{ color: C.text, fontSize: 16 }}>{c.name}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={{ marginTop: 5, padding: 15, backgroundColor: C.surface2, borderRadius: 12, marginBottom: 20 }} onPress={async () => {
+                  const mapStr = await AsyncStorage.getItem('merchant_category_map');
+                  const map = mapStr ? JSON.parse(mapStr) : {};
+                  map[`dismissed_${pendingCategorization!.toLowerCase()}`] = true;
+                  await AsyncStorage.setItem('merchant_category_map', JSON.stringify(map));
+                  setPendingCategorization(null);
+            }}>
+               <Text style={{ textAlign: 'center', color: C.text, fontWeight: 'bold' }}>Not Now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Modal (Task 19) */}
+      <Modal visible={!!editingItem} transparent animationType="slide" onRequestClose={() => setEditingItem(null)}>
+        <View style={styles.sheetOverlay}>
+          <View style={[styles.sheetContent, { backgroundColor: C.surface, maxHeight: SCREEN_HEIGHT * 0.8 }]}>
+            <View style={[styles.dragHandle, { backgroundColor: C.border }]} />
+            <Text style={[styles.sheetTitle, { color: C.text }]}>Edit Transaction</Text>
+            
+            <ScrollView style={{ marginBottom: 15 }} keyboardShouldPersistTaps="handled">
+              <Text style={{ color: C.textSecondary, marginBottom: 5 }}>Amount (₹)</Text>
+              <TextInput 
+                style={{ backgroundColor: C.surface2, color: C.text, padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 18 }} 
+                keyboardType="numeric" 
+                value={editingItem?.editAmount} 
+                onChangeText={t => setEditingItem({ ...editingItem, editAmount: t })} 
+              />
+              
+              <Text style={{ color: C.textSecondary, marginBottom: 5 }}>Description</Text>
+              <TextInput 
+                style={{ backgroundColor: C.surface2, color: C.text, padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 }} 
+                value={editingItem?.editDescription} 
+                onChangeText={t => setEditingItem({ ...editingItem, editDescription: t })} 
+              />
+              
+              {!editingItem?.is_income && (
+                <>
+                  <Text style={{ color: C.textSecondary, marginBottom: 5 }}>Category</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+                    {categories.map(c => (
+                      <TouchableOpacity 
+                        key={c.id} 
+                        style={{ paddingHorizontal: 15, paddingVertical: 10, borderRadius: 20, backgroundColor: editingItem?.editCategory === c.id ? C.accent : C.surface2, marginRight: 10 }}
+                        onPress={() => setEditingItem({ ...editingItem, editCategory: c.id })}>
+                        <Text style={{ color: editingItem?.editCategory === c.id ? '#fff' : C.text }}>{c.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+              
+              <TouchableOpacity style={{ backgroundColor: C.accent, padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 }} onPress={handleUpdateTransaction}>
+                 <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Save Changes</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={{ padding: 15, alignItems: 'center', marginTop: 5 }} onPress={() => setEditingItem(null)}>
+                 <Text style={{ color: C.textSecondary, fontWeight: 'bold' }}>Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
 
       {/* SMS Import Button */}
