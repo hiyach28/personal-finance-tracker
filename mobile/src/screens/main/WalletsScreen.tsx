@@ -168,8 +168,8 @@ const WalletsScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 20 },
-  header: { paddingTop: 50, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  header: { paddingTop: 45, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  title: { fontSize: 28, fontWeight: 'bold' },
   item: { backgroundColor: '#fff', padding: 20, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, elevation: 2 },
   name: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   type: { fontSize: 14, color: '#888', marginTop: 5 },

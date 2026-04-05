@@ -46,80 +46,137 @@ const DashboardScreen = () => {
     }
   };
 
+  const totalBudget = parseFloat(summary?.total_monthly_budget || '0');
+  const spent = parseFloat(summary?.current_month_spending || '0');
+  const remaining = parseFloat(summary?.remaining_monthly_budget || '0');
+  const spentPercentage = totalBudget > 0 ? Math.min(spent / totalBudget, 1) : 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Sticky Header */}
-      <View style={{ paddingTop: 50, paddingHorizontal: 20, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.bg }}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', color: C.text }}>Hello, {user?.email.split('@')[0]}!</Text>
+      <View style={{ paddingTop: 45, paddingHorizontal: 20, paddingBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.bg }}>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: C.text }}>Hi, {user?.email.split('@')[0]}!</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity onPress={toggleTheme}>
-            <Ionicons name={isDark ? 'sunny' : 'moon'} size={22} color={C.accent} />
+            <Ionicons name={isDark ? 'sunny' : 'moon'} size={24} color={C.accent} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => Alert.alert('Log Out', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log Out', style: 'destructive', onPress: logout }
           ])}>
-            <Text style={{ color: C.danger, fontWeight: 'bold', fontSize: 15 }}>Log Out</Text>
+            <Text style={{ color: C.danger, fontWeight: 'bold', fontSize: 16 }}>Log Out</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 130 }}>
         {/* Balance Card */}
-        <View style={{ backgroundColor: C.cardBg, padding: 20, borderRadius: 12, marginBottom: 20, alignItems: 'center' }}>
-          <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, marginBottom: 5 }}>Total Balance</Text>
-          <Text style={{ color: '#fff', fontSize: 36, fontWeight: 'bold' }}>₹{summary?.total_wallet_balance || '0.00'}</Text>
+        <View style={{ backgroundColor: C.cardBg, padding: 25, borderRadius: 16, marginBottom: 20, alignItems: 'center', elevation: 4 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 }}>Total Balance</Text>
+          <Text style={{ color: '#fff', fontSize: 40, fontWeight: 'bold', marginTop: 5 }}>₹{summary?.total_wallet_balance || '0.00'}</Text>
+        </View>
+
+        {/* Monthly Budget Card */}
+        <View style={{ backgroundColor: C.surface, padding: 20, borderRadius: 16, marginBottom: 20, elevation: 2, borderWidth: 1, borderColor: C.border }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="pie-chart" size={20} color={C.accent} style={{ marginRight: 8 }} />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>Monthly Budget</Text>
+            </View>
+            <TouchableOpacity onPress={() => setBudgetModalVisible(true)} style={{ backgroundColor: C.accent + '20', padding: 6, borderRadius: 8 }}>
+              <Ionicons name="pencil" size={16} color={C.accent} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+            <View>
+              <Text style={{ fontSize: 12, color: C.textSecondary, marginBottom: 2 }}>Monthly Goal</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: C.text }}>₹{totalBudget.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          {/* Progress Bar Container */}
+          <View style={{ height: 10, backgroundColor: C.border, borderRadius: 5, width: '100%', overflow: 'hidden' }}>
+            <View style={{
+              height: '100%',
+              backgroundColor: spentPercentage >= 1 ? C.exceeded : spentPercentage > 0.8 ? '#ff8400ff' : C.accent,
+              width: `${spentPercentage * 100}%`
+            }} />
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+            <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
+              Spent: ₹{spent.toFixed(2)}
+            </Text>
+            <Text style={{ fontSize: 12, color: C.textSecondary, fontWeight: '600' }}>
+              {Math.round(spentPercentage * 100)}% Used
+            </Text>
+          </View>
         </View>
 
         {/* Stats Row */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-          <View style={{ backgroundColor: C.surface, padding: 15, borderRadius: 12, width: '48%', elevation: 2 }}>
-            <Text style={{ fontSize: 12, color: C.textSecondary, marginBottom: 5 }}>Spent This Month</Text>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>₹{summary?.current_month_spending || '0.00'}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 }}>
+          <View style={{ backgroundColor: C.surface, padding: 15, borderRadius: 9, width: '48%', elevation: 1, borderLeftWidth: 4, borderLeftColor: '#f97123d6' }}>
+            <Text style={{ fontSize: 11, color: C.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>Spent this Month</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>₹{spent.toFixed(2)}</Text>
           </View>
-          <View style={{ backgroundColor: C.surface, padding: 15, borderRadius: 12, width: '48%', elevation: 2 }}>
-            <Text style={{ fontSize: 12, color: C.textSecondary, marginBottom: 5 }}>Remaining Budget</Text>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>₹{summary?.remaining_monthly_budget || '0.00'}</Text>
-            <TouchableOpacity onPress={() => setBudgetModalVisible(true)} style={{ marginTop: 8 }}>
-              <Text style={{ color: C.accent, fontSize: 12, fontWeight: 'bold' }}>Set Budget</Text>
-            </TouchableOpacity>
+          <View style={{ backgroundColor: C.surface, padding: 15, borderRadius: 9, width: '48%', elevation: 1, borderLeftWidth: 4, borderLeftColor: '#0cb90cc3' }}>
+            <Text style={{ fontSize: 11, color: C.textSecondary, marginBottom: 4, textTransform: 'uppercase' }}>Remaining Budget</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>₹{remaining.toFixed(2)}
+            </Text>
           </View>
         </View>
 
         {/* Wallets */}
         <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: C.text }}>Your Wallets</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: C.text }}>My Wallets</Text>
+            <Text style={{ fontSize: 12, color: C.accent }}>View All</Text>
+          </View>
           {wallets.length === 0 ? (
-            <Text style={{ color: C.textSecondary, fontStyle: 'italic' }}>No wallets found. Add one in the Wallets tab.</Text>
+            <View style={{ padding: 20, backgroundColor: C.surface, borderRadius: 12, alignItems: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: C.border }}>
+              <Text style={{ color: C.textSecondary, fontStyle: 'italic' }}>No wallets found.</Text>
+            </View>
           ) : (
             wallets.map(w => (
-              <View key={w.id} style={{ backgroundColor: C.surface, padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, elevation: 1 }}>
-                <View>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: C.text }}>{w.name}</Text>
-                  <Text style={{ fontSize: 12, color: C.textSecondary }}>{w.type || 'Standard'}</Text>
+              <View key={w.id} style={{ backgroundColor: C.surface, padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, elevation: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.accent + '15', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name="wallet-outline" size={20} color={C.accent} />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: C.text }}>{w.name}</Text>
+                    <Text style={{ fontSize: 12, color: C.textSecondary }}>{w.type || 'Standard'}</Text>
+                  </View>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', color: C.accent }}>₹{w.balance}</Text>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', color: C.text }}>₹{parseFloat(w.balance).toFixed(2)}</Text>
               </View>
             ))
           )}
         </View>
 
         {/* Set Budget Modal */}
-        <Modal animationType="slide" transparent visible={budgetModalVisible}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ width: '85%', backgroundColor: C.surface, padding: 20, borderRadius: 15 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: C.text }}>Set Monthly Budget</Text>
+        <Modal animationType="fade" transparent visible={budgetModalVisible}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ width: '85%', backgroundColor: C.surface, padding: 25, borderRadius: 20, elevation: 10 }}>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center', color: C.text }}>Monthly Goal</Text>
+              <Text style={{ fontSize: 14, color: C.textSecondary, textAlign: 'center', marginBottom: 20 }}>Set your total spending limit for this month.</Text>
               <TextInput
-                style={{ borderWidth: 1, borderColor: C.border, padding: 12, borderRadius: 8, marginBottom: 15, color: C.text, backgroundColor: C.bg }}
-                placeholder="Amount (e.g. 5000)"
+                style={{ borderWidth: 1, borderColor: C.border, padding: 15, borderRadius: 12, marginBottom: 20, color: C.text, backgroundColor: C.bg, fontSize: 18 }}
+                placeholder="₹ 0.00"
                 placeholderTextColor={C.placeholder}
                 value={budgetAmount}
                 onChangeText={setBudgetAmount}
                 keyboardType="numeric"
+                autoFocus
               />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
-                <Button style={{ width: '45%' }} variant="secondary" title="Cancel" onPress={() => setBudgetModalVisible(false)} />
-                <Button style={{ width: '45%' }} title="Save" onPress={handleSetBudget} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TouchableOpacity onPress={() => setBudgetModalVisible(false)} style={{ flex: 1, padding: 15, alignItems: 'center' }}>
+                  <Text style={{ color: C.textSecondary, fontWeight: '600' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSetBudget} style={{ flex: 2, backgroundColor: C.accent, padding: 15, borderRadius: 12, alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save Goal</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>

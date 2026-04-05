@@ -132,9 +132,9 @@ const AnalyticsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  headerBar: { paddingTop: 40, paddingHorizontal: 20, paddingBottom: 5 },
+  headerBar: { paddingTop: 45, paddingHorizontal: 20, paddingBottom: 25 },
   container: { paddingHorizontal: 10 },
-  title: { fontSize: 22, fontWeight: 'bold' },
+  title: { fontSize: 28, fontWeight: 'bold' },
   card: { borderRadius: 12, padding: 15, marginBottom: 20, elevation: 2 },
   chartTitle: { fontSize: 18, fontWeight: '600', marginBottom: 10, alignSelf: 'center' },
   valueText: { fontSize: 20, fontWeight: 'bold' },

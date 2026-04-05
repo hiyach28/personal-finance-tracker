@@ -26,6 +26,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "324ed372-7569-4e0b-b3a1-9b1d2c52c6b1"
+      }
+    },
+    "owner": "hiyathebest"
   }
 }

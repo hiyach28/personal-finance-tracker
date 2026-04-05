@@ -92,8 +92,8 @@ const AddExpenseScreen = ({ navigation }: any) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={{ paddingTop: 50, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: C.bg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: C.text }}>Add Expense</Text>
+      <View style={{ paddingTop: 45, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: C.bg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 28, fontWeight: 'bold', color: C.text }}>Add Expense</Text>
         <TouchableOpacity onPress={isRecording ? stopAndProcess : startRecording} style={{ backgroundColor: isRecording ? C.danger : C.accent, padding: 10, borderRadius: 25, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} disabled={isProcessing}>
           {isProcessing ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name={isRecording ? 'stop' : 'mic'} size={22} color="#fff" />}
         </TouchableOpacity>
